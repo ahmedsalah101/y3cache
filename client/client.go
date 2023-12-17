@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+
 	"y3cache/proto"
 )
 
@@ -53,7 +54,6 @@ func (c *Client) Set(ctx context.Context, key, value []byte) error {
 		TTL:   0,
 	}
 	_, err := c.conn.Write(cmd.Bytes())
-	// fmt.Println("written", string(cmd.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,7 @@ func (c *Client) Set(ctx context.Context, key, value []byte) error {
 	return nil
 }
 
-func New(endpoint string, opts Options) (*Client, error) {
+func New(endpoint string, _ Options) (*Client, error) {
 	conn, err := net.Dial("tcp", endpoint)
 	if err != nil {
 		log.Fatal(err)

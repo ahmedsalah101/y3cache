@@ -8,12 +8,12 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
 	"y3cache/client"
 )
 
-const port = ":4000"
-
 func main() {
+	nodePort := flag.Int("node-port", 2221, "choose the node to operate on")
 	getF := flag.Bool(
 		"get",
 		false,
@@ -25,20 +25,26 @@ func main() {
 		"SET",
 	)
 	flag.Parse()
+
+	if *nodePort == 0 {
+		log.Fatal("invalid node port")
+		return
+	}
+	portStr := fmt.Sprintf(":%d", *nodePort)
 	var wg sync.WaitGroup
 	wg.Add(10)
 	if *setF {
-		SendStuff(&wg)
+		SendStuff(&wg, portStr)
 		return
 	}
 
-	if *getF {
-		GetStuff(&wg)
+	if *getF && *nodePort != 0 {
+		GetStuff(&wg, portStr)
 		return
 	}
 }
 
-func SendStuff(wg *sync.WaitGroup) {
+func SendStuff(wg *sync.WaitGroup, port string) {
 	c, err := client.New(port, client.Options{})
 	if err != nil {
 		log.Fatal(err)
@@ -65,7 +71,7 @@ func SendStuff(wg *sync.WaitGroup) {
 	wg.Wait()
 }
 
-func GetStuff(wg *sync.WaitGroup) {
+func GetStuff(wg *sync.WaitGroup, port string) {
 	c, err := client.New(port, client.Options{})
 	if err != nil {
 		log.Fatal(err)

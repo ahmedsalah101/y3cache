@@ -8,12 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"y3cache/cache"
-	"y3cache/fsm"
 
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/spf13/viper"
+
+	"y3cache/cache"
+	"y3cache/fsm"
 )
 
 type config struct {
@@ -21,7 +22,8 @@ type config struct {
 	Raft   configRaft   `mapstructure:"raft"`
 }
 type configServer struct {
-	Port int `mapstructure:"port"`
+	Port       int `mapstructure:"port"`
+	LeaderPort int `mapstructure:"leader_port"`
 }
 type configRaft struct {
 	NodeId    string `mapstructure:"node_id"`
@@ -31,6 +33,7 @@ type configRaft struct {
 
 const (
 	serverPort = "SERVER_PORT"
+	leaderPort = "LEADER_PORT"
 	raftNodeId = "RAFT_NODE_ID"
 	raftPort   = "RAFT_PORT"
 	raftVolDir = "RAFT_VOL_DIR"
@@ -55,7 +58,8 @@ func main() {
 	v.AutomaticEnv()
 	conf := config{
 		Server: configServer{
-			Port: v.GetInt(serverPort),
+			Port:       v.GetInt(serverPort),
+			LeaderPort: v.GetInt(leaderPort),
 		},
 		Raft: configRaft{
 			NodeId:    v.GetString(raftNodeId),
@@ -64,6 +68,7 @@ func main() {
 		},
 	}
 	log.Printf("%+v\n", conf)
+
 	raftBindAddr := fmt.Sprintf("127.0.0.1:%d", conf.Raft.Port)
 	raftConf := raft.DefaultConfig()
 	raftConf.LocalID = raft.ServerID(conf.Raft.NodeId)
@@ -71,6 +76,14 @@ func main() {
 	y3Cache := cache.New()
 
 	y3FSM := fsm.NewY3CacheFSM(y3Cache)
+	if conf.Raft.VolumeDir == "" {
+		log.Fatal("please enter a valid dir")
+		return
+	}
+	if err := os.MkdirAll(conf.Raft.VolumeDir, os.FileMode(0744)); err != nil {
+		log.Fatal("couldn't create dir: ", err)
+		return
+	}
 	store, err := raftboltdb.NewBoltStore(
 		filepath.Join(conf.Raft.VolumeDir, "raft.dataRepo"),
 	)
@@ -123,21 +136,13 @@ func main() {
 	}
 	raftServer.BootstrapCluster(configuration)
 
-	leaderAddr := flag.String(
-		"leaderaddr",
-		"",
-		"listen address of the server",
-	)
-	listenAddr := flag.String(
-		"listenaddr",
-		":3000",
-		"listen address of the server",
-	)
 	flag.Parse()
 	opts := ServerOpts{
-		ListenAddr: *listenAddr,
-		LeaderAddr: *leaderAddr,
-		IsLeader:   len(*leaderAddr) == 0,
+		NodeID:      conf.Raft.NodeId,
+		RaftAddress: raftBindAddr,
+		ListenAddr:  fmt.Sprintf(":%d", conf.Server.Port),
+		LeaderAddr:  fmt.Sprintf(":%d", conf.Server.LeaderPort),
+		IsLeader:    conf.Server.LeaderPort == 0,
 	}
 	server := NewServer(opts, y3Cache, raftServer)
 	server.Start()

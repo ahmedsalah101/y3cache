@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"y3cache/cache"
-	"y3cache/proto"
 
 	"github.com/hashicorp/raft"
+
+	"y3cache/cache"
+	"y3cache/proto"
 )
 
 type CommnadPayload struct {
@@ -48,30 +49,6 @@ func (y y3cacheFSM) Apply(log *raft.Log) any {
 				Status: proto.StatusOK,
 			}
 		}
-
-		//using regular json
-		// payload := CommnadPayload{}
-		// if err := json.Unmarshal(log.Data, &payload); err != nil {
-		// 	_, _ = fmt.Fprintf(
-		// 		os.Stderr,
-		// 		"error marshalling store payload %s\n",
-		// 		err.Error(),
-		// 	)
-		// 	return nil
-		// }
-		// op := strings.ToUpper(strings.TrimSpace(payload.Operation))
-		// switch op {
-		// case "SET":
-		// 	return &ApplyResponse{
-		// 		Error: y.c.Set(payload.Key, payload.Value, 0),
-		// 	}
-		// case "GET":
-		// 	data, err := y.c.Get(payload.Key)
-		// 	return &ApplyResponse{
-		// 		Error: err,
-		// 		Data:  data,
-		// 	}
-		// }
 	}
 	_, _ = fmt.Fprintf(os.Stderr, "not raft command type\n")
 	return nil
